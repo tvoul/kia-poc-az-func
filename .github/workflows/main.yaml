@@ -1,0 +1,53 @@
+name: Deploy function
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscription-name:
+        description: "Azure subscription name"
+        required: true
+      tag:
+        description: "Git tag"
+        required: false
+        default: main
+      resource-group:
+        description: "Name of resource group"
+        required: true
+      function-app-name:
+        description: "Name of function app"
+        required: true
+      function-name:
+        description: "Name of the function to deploy"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.tag }}
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{secrets.AZURE_CREDENTIALS}}
+        allow-no-subscriptions: true
+
+    - name: Set subscription
+      run: |
+        az account set --subscription "${{ github.event.inputs.subscription-name }}"
+
+    - name: Deploy function app
+      run: |
+        # Create a ZIP file containing the specific function code
+        zip -r HttpTrigger87.zip ${{ github.event.inputs.function-name }}/
+
+        # Deploy the specific function using the ZIP file
+        az functionapp deployment source config-zip -g ${{ github.event.inputs.resource-group }} -n ${{ github.event.inputs.function-app-name }} --src HttpTrigger87.zip
+    
+    - name: Logout of Azure
+      run: |
+        az logout
